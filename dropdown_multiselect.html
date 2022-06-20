@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+	<!-- This controls the buttons and forms -->
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.1/css/bootstrap-select.css" />
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.bundle.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.1/js/bootstrap-select.min.js"></script>
+
+	<!-- This controls the plots -->
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <script src="https://cdn.plot.ly/plotly-2.11.1.min.js"></script>
+
+
+<title>Page Title</title>
+</head>
+<body>
+
+ <form action="/dropdown_multiselect" method="post" enctype="form-data">
+	
+	<select class="selectpicker" name="selected_machine" id="machine_selector" data-live-search="true">
+		<option value="" selected disabled hidden>Choose here</option>
+		{% for machine in all_machines %}
+	 		{% if machine == selected_machine %}
+		    	<option selected="selected"> {{machine}} </option>
+		    {% else %}
+		    	<option>{{machine}}</option>
+			{% endif %}
+	  {% endfor %}
+	</select>
+
+	<select class="selectpicker" name="selected_sensors" id="sensor_selector" multiple data-live-search="true">
+		{% for sensor in all_sensors %}
+	 		{% if sensor in selected_sensors %}
+		    	<option selected="selected"> {{sensor}} </option>
+		    {% else %}
+		    	<option>{{sensor}}</option>
+			{% endif %}
+	  {% endfor %}
+	</select>
+    
+    <button id="submit_sensors" type='submit' class="btn btn-primary" onclick="get_selected_sensors(selected_sensors.value)">
+    Submit sensors
+	</button>
+
+</form>
+
+<!-- I dont really know what this does -->
+<script>
+	//$('select').selectpicker('val');
+	$('selectpicker').selectpicker('val');
+
+	function get_selected_sensors( values )
+	{
+		console.log("Selected sensors are: ")
+		console.log(values)
+	}
+
+
+</script>
+
+<!-- This controls the plots -->
+<script>
+
+            //Get selected machine
+            var e1 = document.getElementById("machine_selector");
+            var selected_machine = e1.options[e1.selectedIndex].text;
+            console.log("Default value of selected_machine");
+            console.log(selected_machine);
+
+            //Get selected sensors
+            var options = document.getElementById('sensor_selector').selectedOptions;
+			var sensor_values = Array.from(options).map(({ value }) => value);
+			console.log("Default value of selected_machine");
+			console.log(sensor_values);
+			console.log(typeof(sensor_values))
+
+            //var select_machines = [];
+            var all_plots = {};
+            //var select_sensors ={'Sensor_11': 'Sensor_11', 'Sensor_12': 'Sensor_12', 'Sensor_13': 'Sensor_13'};
+            var counters = {};
+
+            function getData() {
+                return Math.random();
+            } 
+
+
+
+            // loop through all select sensors and create plots
+            for (const key in sensor_values){
+                sensor = sensor_values[key]
+                console.log(sensor);
+
+
+                // Define Layout
+				var layout = {
+				  xaxis: {title: "Datetime"},
+				  yaxis: {title: "Value"},
+				  title: sensor
+				};
+
+                // Create a div for each sensor plot
+                var newDiv = document.createElement('div');
+                newDiv.id = sensor
+                document.body.appendChild(newDiv);
+                console.log('this is the div...')
+                //var graphDiv = document.getElementById(sensor);
+
+                /*
+                Plotly.newPlot(newDiv,[{
+                        y:[0],
+                        type:'line'
+                    }],
+                    layout);
+
+                } */
+
+                var time = new Date();
+
+                var data = [{
+                    x: [],
+                    y: [],
+                    mode: 'line',
+                    line: {color: '#80CAF6'}
+                }]
+
+                Plotly.newPlot(newDiv,data,
+                    layout);
+
+                }
+
+
+
+
+           // Here we look how manuy elements we have
+            var allTheElementsHavingID = document.querySelectorAll('[id]');
+            var allTheID = [];
+            for(i=0;i<allTheElementsHavingID.length;i++){
+                allTheID.push(allTheElementsHavingID[i].id);
+            }
+
+            //console.log("Numer of elements are: " +allTheID.length)
+
+
+                var receivedSensorData = {};
+                function storeData(meassurement) {
+                    meassuredSensor = meassurement.Name;
+                    meassuredValue = meassurement.Value;
+                    meassuredTimestamp = meassurement.Timestamp;
+                    meassuredDate = new Date(meassuredTimestamp*1000);
+                    console.log("The Date-fromatted timestamp is: " + meassuredDate);
+
+                    var graphDiv = document.getElementById(meassuredSensor);
+
+                    
+                    if (graphDiv !== null) {
+                        // DO EXTEND TRACES FOR PLOTLY PLOT
+
+                        var update = {
+                            x:  [[meassuredDate]],
+                            y: [[meassuredValue]]
+                        }
+                        //Plotly.extendTraces(graphDiv,{ y:[[meassuredValue]]}, [0]);
+                        Plotly.extendTraces(graphDiv,update, [0]);
+                        console.log("Data should have been added to plotly")
+  
+
+                    } else {
+                        console.log("sensor not found in SENSOR_VALUES")
+                        //Vilken typ är meassuredSensor?
+                        console.log("Typen av meassuredSensor är:");
+                        console.log(typeof(meassuredSensor));
+                        //vad returnerar getElementByID?
+                        console.log("Vad returnerar getElementByID?");
+                        console.log(document.getElementById(meassuredSensor));
+                        console.log("Vilka värden finns i sensor_values?: " + sensor_values);
+
+                    }
+
+                    console.log("Congrats - you reached the end of the storeData-function! :)");
+                    return Math.random();
+                }  
+
+
+                // Here we enter the code for web-sockets
+                const ws = new WebSocket("ws://localhost:8000/ws");     
+                let x = 0;
+                ws.onmessage = function(event) {
+                    const measurement = JSON.parse(event.data);
+                    console.log(measurement);
+                    console.log(measurement.Value);
+                    storeData(measurement);
+
+
+                };
+
+
+
+        
+        </script>
+
+
+
+
+
+</body>
+</html>
